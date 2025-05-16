@@ -48,7 +48,38 @@ func logicHandler(w http.ResponseWriter, r *http.Request){
 		case "POST":
 		default:
 		}
+	case "/register":
+		switch r.Method{
+		case "GET":
+			templates.RenderTemplate(w,"register",&templates.RegisterPage{false,""})
+		case "POST":
+			r.ParseForm()
+			log.Println(r.Form)
+
+			_,uuid,err:=db.FetchUserByUsername(r.Form["username"],"")
+			if err!=nil{
+				w.WriteHeader(http.StatusUnauthorized)
+			}else{
+				role :="user"
+				uuid , err :=db.StoreUser(strings.Join(r.Form["username"],""),strings.Join(r.Form["password"],""),role)
+				if err!=nil{
+					http.Error(w,http.StatusText(500),500)
+				}
+				log.Println("uuid: "+uuid)
+				authTokenString,refreshTokenString,csrfSecret,err := myJWt.CreateNewTokens(uuid,role)
+				if err!=nil{
+					http.Error(w,http.StatusText(500),500)
+				}
+				setAuthAndRefreshCookies(&w,authTokenString,refreshTokenString)
+				w.Header().Set("X-CSRF-Token",csrfSecret)
+				w.WriteHeader(http.StatusOK)
+			}
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
 	case "/logout":
+		nullifyTokenCookies(&w,r)
+		http.Redirect(w,r,"/login",302)
 	case "/deleteUser":
 	default:
 	}
@@ -65,7 +96,7 @@ func nullifyTokenCookies(w *http.ResponseWriter,r *http.Request){
 	refreshCookie :=http.Cookie{
 		Name:"RefreshToken",
 		Value:"",
-		Expires:time.Now().Add(-1000*time.Hour)
+		Expires:time.Now().Add(-1000*time.Hour),
 		HttpOnly: true,
 	}
 	http.SetCookie(*w,&refreshCookie)
@@ -82,15 +113,15 @@ func nullifyTokenCookies(w *http.ResponseWriter,r *http.Request){
 
 func setAuthAndRefreshCookies(w *http.ResponseWriter,authTokenString string,refreshTokenString string){
 	authCookie:http.Cookie{
-		Name:"AuthToken"
-		Value:authTokenString
-		HttOnly:true
+		Name:"AuthToken",
+		Value:authTokenString,
+		HttOnly:true,
 	}
 	http.SetCookie(*w,&authCookie)
 	refreshCookie :=http.Cookie{
-		Name:"RefreshToken"
+		Name:"RefreshToken",
 		Value:refreshTokenString
-		HttpOnly: true,
+		HttpOnly: true
 	}
 	http.SetCookie(*w,&refreshCookie)
 }
