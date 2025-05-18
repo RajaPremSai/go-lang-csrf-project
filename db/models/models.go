@@ -1,13 +1,14 @@
 package models
 
-import(
+import (
 	"time"
-	"github.com/rajapremsai/go-lang-csrf-project/randomstrings"
+
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/rajapremsai/go-lang-csrf-project/randomstrings"
 )
 
-type User struct{
-	Username,PasswordHash,Role string
+type User struct {
+	Username, PasswordHash, Role string
 }
 
 type TokenClaims struct{
